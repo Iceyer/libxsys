@@ -53,6 +53,16 @@ int GetPartitionDiskNum(QString targetDev) {
     return -1;
 }
 
+qint64 GetPartitionFreeSpace(const QString &targetDev) {
+    QString devname = QString("%1:\\").arg(targetDev.at(0));
+    ULARGE_INTEGER FreeAv,TotalBytes,FreeBytes;
+    if  (!GetDiskFreeSpaceEx(LPWSTR(devname.utf16()),&FreeAv,&TotalBytes,&FreeBytes)) {
+        return 0;
+    }
+    return FreeBytes.QuadPart;
+}
+
+
 /*
    return physic driver name like "\\\\.\\PHYSICALDRIVE1";
    */
@@ -209,6 +219,14 @@ bool CheckFormatFat32(const QString& targetDev) {
     return false;
 }
 
+qint64 GetPartitionFreeSpace(const QString &targetDev) {
+    XSys::Result ret = XSys::SynExec("df --output=avail ", targetDev);
+    if (!ret.isSuccess()) {
+        return 0;
+    }
+    return ret.result().split("\r").last().remove("\n").toLongLong();
+}
+
 XSys::Result InstallSyslinux(const QString& targetDev) {
     // install syslinux
     // UmountDisk(targetDev);
@@ -216,8 +234,8 @@ XSys::Result InstallSyslinux(const QString& targetDev) {
     XSys::Result ret = XSys::SynExec("chmod +x ", sysliuxPath);
     if (!ret.isSuccess()) return ret;
 
-    ret = UmountDisk(targetDev);
-    if (!ret.isSuccess()) return ret;
+    //ret = UmountDisk(targetDev);
+    //if (!ret.isSuccess()) return ret;
 
     ret = XSys::SynExec(sysliuxPath, QString(" -i %1").arg(targetDev));
     if (!ret.isSuccess()) return ret;
@@ -230,6 +248,7 @@ XSys::Result InstallSyslinux(const QString& targetDev) {
 
     // make active
     ret = XSys::SynExec("sfdisk", QString("%1 -A%2").arg(rawtargetDev, QString(targetDev).remove(rawtargetDev).remove("p")));
+    if (!ret.isSuccess()) return ret;
 
     return ret;
 }
@@ -316,6 +335,15 @@ XSys::Result InstallBootloader(const QString& diskDev) {
 #endif
 
 #ifdef Q_OS_MAC
+qint64 GetPartitionFreeSpace(const QString &targetDev) {
+    XSys::Result ret = XSys::SynExec("df", "-b");
+    if (!ret.isSuccess()) {
+        qDebug()<<"Call df Failed";
+        return 0;
+    }
+    return ret.result().split("\n").filter(targetDev).first().split(" ").filter(QRegExp("[^\\s]")).at(3).toLongLong()*512;
+}
+
 QString GetPartitionDisk(QString targetDev) {
     return QString(targetDev).remove(QRegExp("s\\d$"));
 }
@@ -409,6 +437,11 @@ PartionFormat GetPartitionFormat(const QString& targetDev) {
         return PF_FAT32;
     }
     return PF_RAW;
+}
+
+
+qint64 GetPartitionFreeSpace(const QString &targetDev) {
+    return XAPI::GetPartitionFreeSpace(targetDev);
 }
 
 QString GetPartitionDisk(const QString& targetDev) {

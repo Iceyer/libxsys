@@ -20,6 +20,8 @@ namespace DiskUtil {
     QString MountPoint(const QString& targetDev) ;
     PartionFormat GetPartitionFormat(const QString &targetDev);
     QString GetPartitionDisk(const QString &targetDev);
+
+    qint64 GetPartitionFreeSpace(const QString &targetDev);
 }
 
 namespace Bootloader {

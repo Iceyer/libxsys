@@ -20,13 +20,25 @@ static Result runApp(const QString &execPath, const QString &execParam, const QS
 //    app.setStandardOutputFile(outPipePath);
 //    app.setStandardErrorFile(outPipePath);
     app.start(execPath + " " + execParam);
-    app.waitForFinished();
+    if (!app.waitForStarted()) {
+        qWarning()<<"Cmd Exec Failed:"<<app.errorString();
+        return Result(Result::Faiiled, app.errorString(), "", app.program());
+    }
+
+    if (!app.waitForFinished(-1)) {
+        qWarning()<<"Cmd Exec Failed:"<<app.errorString();
+        return Result(Result::Faiiled, app.errorString(), "", app.program());
+    }
 
     if (QProcess::NormalExit != app.exitStatus()) {
         qWarning()<<"Cmd Exec Failed:"<<app.readAllStandardError();
-        return Result(Result::Faiiled, app.readAllStandardError());
+        return Result(Result::Faiiled, app.readAllStandardError(), "", app.program());
     }
 
+    if (0 != app.exitCode()) {
+        qWarning()<<"Cmd Exec Failed:"<<app.readAllStandardError();
+        return Result(Result::Faiiled, app.readAllStandardError(), "", app.program());
+    }
 //    QFile locale(outPipePath);
 //    if (!locale.open(QIODevice::ReadOnly)) {
 //        return Result(Result::Faiiled, "Open Ouput Pipe Failed");
